@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "title": "Exploring the Future of AI",
+    "content": "Artificial Intelligence continues to evolve, impacting every sector from healthcare to finance.",
+    "author": "Emma Watson",
+    "likes": 124
+  },
+  {
+    "id": 2,
+    "title": "10 Tips for Remote Productivity",
+    "content": "Learn how to stay efficient while working from home with these proven strategies.",
+    "author": "John Doe",
+    "likes": 87
+  },
+  {
+    "id": 3,
+    "title": "A Beginner’s Guide to Web3",
+    "content": "Understanding decentralized apps and blockchain in the new era of the Internet.",
+    "author": "Aarav Sharma",
+    "likes": 210
+  },
+  {
+    "id": 4,
+    "title": "How to Build Healthy Habits",
+    "content": "Small daily improvements lead to remarkable long-term results.",
+    "author": "Sophia Liu",
+    "likes": 132
+  }
+]

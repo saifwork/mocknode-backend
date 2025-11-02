@@ -1,0 +1,6 @@
+[
+  { "id": 1, "userId": 1, "productId": 101, "quantity": 2, "total": 199.98 },
+  { "id": 2, "userId": 3, "productId": 104, "quantity": 1, "total": 59.99 },
+  { "id": 3, "userId": 2, "productId": 105, "quantity": 3, "total": 269.97 },
+  { "id": 4, "userId": 5, "productId": 102, "quantity": 1, "total": 149.99 }
+]

@@ -1,0 +1,7 @@
+[
+  { "id": 1, "postId": 1, "user": "Carlos Ruiz", "comment": "This was a great read, thanks!" },
+  { "id": 2, "postId": 1, "user": "Aarav Sharma", "comment": "AI is indeed shaping our future rapidly." },
+  { "id": 3, "postId": 3, "user": "John Doe", "comment": "Can’t wait to explore more about Web3!" },
+  { "id": 4, "postId": 2, "user": "Sophia Liu", "comment": "Productivity is key! Thanks for the insights." },
+  { "id": 5, "postId": 4, "user": "Emma Watson", "comment": "Absolutely agree, small changes make big impacts." }
+]
