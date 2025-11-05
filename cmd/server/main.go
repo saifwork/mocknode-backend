@@ -53,12 +53,14 @@ func main() {
 	projectSvc := services.NewProjectService(mongoClient, cfg)
 	collectionSvc := services.NewCollectionService(mongoClient, cfg)
 	recordSvc := services.NewRecordService(mongoClient, cfg)
+	configSvc := services.NewConfigService()
 
 	// init handlers
 	authHandler := handlers.NewAuthHandler(authSvc, cfg)
 	projectHandler := handlers.NewProjectHandler(projectSvc, cfg)
 	collectionHandler := handlers.NewCollectionHandler(collectionSvc, cfg)
 	recordHandler := handlers.NewRecordHandler(recordSvc, cfg)
+	configHandler := handlers.NewConfigHandler(configSvc, cfg)
 	healthHandler := handlers.NewHealthHandler(mongoClient)
 
 	// --- Initialize Gin ---
@@ -70,7 +72,7 @@ func main() {
 	)
 
 	// --- Register routes ---
-	api.RegisterRoutes(r, cfg, authHandler, projectHandler, collectionHandler, recordHandler, healthHandler)
+	api.RegisterRoutes(r, cfg, authHandler, projectHandler, collectionHandler, recordHandler, healthHandler, configHandler)
 
 	// --- Start server ---
 	log.Printf("Starting %s on port %s...", cfg.AppName, cfg.AppPort)

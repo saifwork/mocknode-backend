@@ -16,6 +16,7 @@ func RegisterRoutes(
 	collectionHandler *handlers.CollectionHandler,
 	recordHandler *handlers.RecordHandler,
 	healthHandler *handlers.HealthHandler,
+	configHandler *handlers.ConfigHandler,
 ) {
 	// Handlers
 
@@ -24,4 +25,5 @@ func RegisterRoutes(
 	collectionHandler.RegisterRoutes(&r.RouterGroup)
 	recordHandler.RegisterRoutes(&r.RouterGroup)
 	healthHandler.RegisterRoutes(&r.RouterGroup)
+	configHandler.RegisterRoutes(&r.RouterGroup)
 }
