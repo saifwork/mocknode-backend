@@ -30,6 +30,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 		authRoutes.POST("/resend-verification", h.ResendVerification)
 
 		authRoutes.POST("/login", h.Login)
+		authRoutes.POST("/refresh-token", h.RefreshToken)
 		authRoutes.POST("/reset-forgot-password", h.ResetForgotPassword)
 
 		authRoutes.POST("/forgot-password", h.ForgotPassword)
@@ -37,7 +38,51 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 		// ✅ Protected route
 		authRoutes.POST("/reset-password", middlewares.AuthMiddleware(h.cfg), h.ResetPassword)
 		authRoutes.GET("/me", middlewares.AuthMiddleware(h.cfg), h.GetCurrentUser)
+
+		authRoutes.POST("/logout", middlewares.AuthMiddleware(h.cfg), h.Logout)
+
 	}
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	userIdRaw, exists := c.Get("userId")
+	if !exists {
+		responses.JSONError(c, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	userIdStr := userIdRaw.(string)
+
+	err := h.service.Logout(userIdStr)
+	if err != nil {
+		responses.JSONError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responses.JSONSuccess(c, http.StatusOK, "Logged out successfully", nil)
+}
+
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	type Req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil || req.RefreshToken == "" {
+		responses.JSONError(c, http.StatusBadRequest, "refreshToken is required")
+		return
+	}
+
+	accessToken, refreshToken, err := h.service.RefreshToken(req.RefreshToken)
+	if err != nil {
+		responses.JSONError(c, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	responses.JSONSuccess(c, http.StatusOK, "Token refreshed", gin.H{
+		"token":        accessToken,
+		"refreshToken": refreshToken,
+	})
 }
 
 func (h *AuthHandler) ResendVerification(c *gin.Context) {
@@ -115,13 +160,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.Login(&req)
+	tokens, err := h.service.Login(&req)
 	if err != nil {
 		responses.JSONError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	responses.JSONSuccess(c, http.StatusOK, "Login successful", gin.H{"token": token})
+	responses.JSONSuccess(c, http.StatusOK, "Login successful", tokens)
 }
 
 // -------------------- Forgot Password --------------------

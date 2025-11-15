@@ -214,6 +214,106 @@ If you didn’t request this, you can safely ignore it.<br><br>
 	return nil
 }
 
+func (s *AuthService) Logout(userID string) error {
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return errors.New("invalid user id")
+	}
+
+	// Clear refresh token in DB → logout everywhere
+	_, err = s.coll.UpdateOne(
+		s.ctx,
+		bson.M{"_id": objectID},
+		bson.M{
+			"$set": bson.M{
+				"refreshToken": "",
+				"updatedAt":    time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AuthService) RefreshToken(refreshToken string) (string, string, error) {
+	// Validate refresh token signature + expiry
+	claims, err := utils.ValidateRefreshToken(
+		refreshToken,
+		s.cfg.JWTRefreshSecret,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Extract user_id from claims
+	userIDStr, ok := claims["userId"].(string)
+	if !ok {
+		return "", "", errors.New("invalid userId in token")
+	}
+
+	// Get user ID from claims
+	userId, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		return "", "", errors.New("invalid user id")
+	}
+
+	// Fetch user
+	var user models.User
+	err = s.coll.FindOne(s.ctx, bson.M{"_id": userId}).Decode(&user)
+	if err != nil {
+		return "", "", errors.New("user not found")
+	}
+
+	// Compare incoming refresh token with DB-stored token
+	if user.RefreshToken != refreshToken {
+		return "", "", errors.New("token no longer valid (rotated)")
+	}
+
+	if !user.IsVerified {
+		return "", "", errors.New("email not verified")
+	}
+
+	// Generate new access token
+	newAccessToken, err := utils.GenerateJWT(
+		user.ID.Hex(),
+		s.cfg.JWTAccessSecret,
+		15*time.Minute,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Generate new refresh token (rotation)
+	newRefreshToken, err := utils.GenerateJWT(
+		user.ID.Hex(),
+		s.cfg.JWTRefreshSecret,
+		30*24*time.Hour,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Update DB with new refresh token
+	_, err = s.coll.UpdateOne(
+		s.ctx,
+		bson.M{"_id": user.ID},
+		bson.M{
+			"$set": bson.M{
+				"refreshToken": newRefreshToken,
+				"updatedAt":    time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	return newAccessToken, newRefreshToken, nil
+}
+
 // -------------------- Verify Email --------------------
 func (s *AuthService) VerifyEmail(token string) error {
 
@@ -252,28 +352,61 @@ func (s *AuthService) VerifyEmail(token string) error {
 }
 
 // -------------------- Login --------------------
-func (s *AuthService) Login(req *dtos.UserLoginRequestDto) (string, error) {
-
+func (s *AuthService) Login(req *dtos.UserLoginRequestDto) (*dtos.AuthTokens, error) {
 	var user models.User
 	err := s.coll.FindOne(s.ctx, bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
 	if !user.IsVerified {
-		return "", errors.New("email not verified")
+		return nil, errors.New("email not verified")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
-	token, err := utils.GenerateJWT(user.ID.Hex(), s.cfg.JWTSecret, 24*time.Hour)
+	// Generate access token (short-lived)
+	accessToken, err := utils.GenerateJWT(
+		user.ID.Hex(),
+		s.cfg.JWTAccessSecret,
+		15*time.Minute,
+	)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token, nil
+	// Generate refresh token (long-lived)
+	refreshToken, err := utils.GenerateJWT(
+		user.ID.Hex(),
+		s.cfg.JWTRefreshSecret,
+		30*24*time.Hour,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store refresh token in DB
+	_, err = s.coll.UpdateOne(
+		s.ctx,
+		bson.M{"_id": user.ID},
+		bson.M{
+			"$set": bson.M{
+				"refreshToken": refreshToken,
+				"updatedAt":    time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dtos.AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(15 * 60),
+	}, nil
 }
 
 // -------------------- Forgot Password --------------------

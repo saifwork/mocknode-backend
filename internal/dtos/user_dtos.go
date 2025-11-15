@@ -43,3 +43,9 @@ type UserTokenClaims struct {
 	UserID string `json:"userId"`
 	Email  string `json:"email"`
 }
+
+type AuthTokens struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	ExpiresIn    int64  `json:"expiresIn"`
+}

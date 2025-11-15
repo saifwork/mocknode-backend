@@ -16,6 +16,8 @@ type User struct {
 	IsVerified   bool               `bson:"isVerified" json:"isVerified"`
 	IsActive     bool               `bson:"isActive" json:"isActive"`
 
+	RefreshToken string `bson:"refreshToken,omitempty" json:"-"`
+
 	VerificationToken   string    `bson:"verificationToken,omitempty" json:"-"`
 	VerificationExpires time.Time `bson:"verificationExpires,omitempty" json:"-"`
 

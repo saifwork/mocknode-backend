@@ -23,7 +23,9 @@ type Config struct {
 	MongoURI    string
 	MongoDBName string
 
-	JWTSecret  string
+	JWTAccessSecret  string
+	JWTRefreshSecret string
+
 	AppBaseURL string
 
 	// SMTP
@@ -40,20 +42,21 @@ func LoadConfig() *Config {
 	reqLimit := getEnvAsInt("SESSION_REQUEST_LIMIT", 500)
 
 	cfg := &Config{
-		AppName:         getEnv("APP_NAME", "Mock CRUD Service"),
-		AppPort:         getEnv("APP_PORT", "8080"),
-		AppEnv:          getEnv("APP_ENV", "development"),
-		RedisHost:       getEnv("REDIS_HOST", "localhost"),
-		RedisPort:       getEnv("REDIS_PORT", "6379"),
-		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
-		SessionTTL:      time.Duration(ttlSeconds) * time.Second,
-		SessionReqLimit: reqLimit,
-		MongoURI:        getEnv("MONGO_URI", "mongodb+srv://mocknode_db_user:A3gl7aRY0ILpHF2i@cluster0.i3ygpz3.mongodb.net/?retryWrites=true&w=majority&tls=true"),
-		MongoDBName:     getEnv("MONGO_DB_NAME", "mock_service"),
-		JWTSecret:       getEnv("JWT_SECRET", "supersecret"),
-		AppBaseURL:      getEnv("APP_BASE_URL", "http://localhost:8080"),
-		GmailUser:       getEnv("GMAIL_USER", "mocknode@gmail.com"),
-		GmailPassKey:    getEnv("GMAIL_PASSKEY", "pgtlcjrinxvywdss"),
+		AppName:          getEnv("APP_NAME", "Mock CRUD Service"),
+		AppPort:          getEnv("APP_PORT", "8080"),
+		AppEnv:           getEnv("APP_ENV", "development"),
+		RedisHost:        getEnv("REDIS_HOST", "localhost"),
+		RedisPort:        getEnv("REDIS_PORT", "6379"),
+		RedisPassword:    getEnv("REDIS_PASSWORD", ""),
+		SessionTTL:       time.Duration(ttlSeconds) * time.Second,
+		SessionReqLimit:  reqLimit,
+		MongoURI:         getEnv("MONGO_URI", "mongodb+srv://mocknode_db_user:A3gl7aRY0ILpHF2i@cluster0.i3ygpz3.mongodb.net/?retryWrites=true&w=majority&tls=true"),
+		MongoDBName:      getEnv("MONGO_DB_NAME", "mock_service"),
+		JWTAccessSecret:  getEnv("JWT_ACCESS_SECRET", "supersecretaccesskey"),
+		JWTRefreshSecret: getEnv("JWT_REFRESH_SECRET", "supersecretrefreshkey"),
+		AppBaseURL:       getEnv("APP_BASE_URL", "http://localhost:8080"),
+		GmailUser:        getEnv("GMAIL_USER", "mocknode@gmail.com"),
+		GmailPassKey:     getEnv("GMAIL_PASSKEY", "pgtlcjrinxvywdss"),
 	}
 
 	log.Println("======== [CONFIG LOADED SUCCESSFULLY] ========")
@@ -67,7 +70,8 @@ func LoadConfig() *Config {
 	log.Printf("SESSION_REQUEST_LIMIT: %d", cfg.SessionReqLimit)
 	log.Printf("MONGO_URI: %s", cfg.MongoURI)
 	log.Printf("MONGO_DB_NAME: %s", cfg.MongoDBName)
-	log.Printf("JWT_SECRET: %s", cfg.JWTSecret)
+	log.Printf("JWT_SECRET_ACCESS: %s", cfg.JWTAccessSecret)
+	log.Printf("JWT_SECRET_REFRESH: %s", cfg.JWTRefreshSecret)
 	log.Printf("APP_BASE_URL: %s", cfg.AppBaseURL)
 	log.Printf("GMAIL_USER: %s", cfg.GmailUser)
 	log.Printf("GMAIL_PASSKEY: %s", cfg.GmailPassKey)

@@ -27,11 +27,11 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(cfg.JWTSecret), nil
+			return []byte(cfg.JWTAccessSecret), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -42,7 +42,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 
 		// ✅ Store claims/userID in context
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("userID", claims["user_id"])
+			c.Set("userId", claims["userId"])
 		}
 
 		c.Next()
