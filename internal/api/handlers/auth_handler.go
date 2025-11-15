@@ -26,15 +26,36 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 	authRoutes := r.Group("/auth")
 	{
 		authRoutes.POST("/signup", h.Signup)
-		authRoutes.POST("/login", h.Login)
 		authRoutes.GET("/verify-email", h.VerifyEmail)
-		authRoutes.POST("/forgot-password", h.ForgotPassword)
+		authRoutes.POST("/resend-verification", h.ResendVerification)
+
+		authRoutes.POST("/login", h.Login)
 		authRoutes.POST("/reset-forgot-password", h.ResetForgotPassword)
+
+		authRoutes.POST("/forgot-password", h.ForgotPassword)
 
 		// ✅ Protected route
 		authRoutes.POST("/reset-password", middlewares.AuthMiddleware(h.cfg), h.ResetPassword)
 		authRoutes.GET("/me", middlewares.AuthMiddleware(h.cfg), h.GetCurrentUser)
 	}
+}
+
+func (h *AuthHandler) ResendVerification(c *gin.Context) {
+	var payload struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		responses.JSONError(c, http.StatusBadRequest, "Invalid email format")
+		return
+	}
+
+	if err := h.service.ResendVerification(payload.Email); err != nil {
+		responses.JSONError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	responses.JSONSuccess(c, http.StatusOK, "Verification email resent successfully", nil)
 }
 
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {

@@ -70,16 +70,22 @@ func (s *AuthService) Signup(req *dtos.UserRegisterRequestDto) error {
 	}
 
 	user := &models.User{
-		ID:                  primitive.NewObjectID(),
-		FullName:            req.FullName,
-		Email:               req.Email,
-		PasswordHash:        string(hashed),
-		IsUpgraded:          false,
-		IsVerified:          false,
+		ID:           primitive.NewObjectID(),
+		FullName:     req.FullName,
+		Email:        req.Email,
+		PasswordHash: string(hashed),
+		IsUpgraded:   false,
+		IsVerified:   false,
+		IsActive:     false,
+
 		VerificationToken:   primitive.NewObjectID().Hex(),
 		VerificationExpires: time.Now().Add(24 * time.Hour),
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
+
+		LastVerificationSentAt: time.Now(),
+		VerificationEmailCount: 1, // first email sent
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	_, err = s.coll.InsertOne(s.ctx, user)
@@ -128,6 +134,86 @@ func (s *AuthService) Signup(req *dtos.UserRegisterRequestDto) error {
 	return nil
 }
 
+// -------------------- Resend Verification Email --------------------
+func (s *AuthService) ResendVerification(email string) error {
+
+	// Find user by email
+	var user models.User
+	err := s.coll.FindOne(s.ctx, bson.M{"email": email}).Decode(&user)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Already verified — no need to resend
+	if user.IsVerified {
+		return errors.New("email already verified")
+	}
+
+	// ⛔ Cooldown 2 minutes
+	if time.Since(user.LastVerificationSentAt) < 2*time.Minute {
+		return errors.New("please wait before requesting another verification email")
+	}
+
+	// ⛔ Daily limit (reset if new day)
+	if time.Now().Day() != user.LastVerificationSentAt.Day() {
+		user.VerificationEmailCount = 0
+	}
+
+	if user.VerificationEmailCount >= 5 {
+		return errors.New("daily limit reached — try again tomorrow")
+	}
+
+	// Generate new token + expiry
+	newToken := primitive.NewObjectID().Hex()
+	newExpiry := time.Now().Add(24 * time.Hour)
+
+	// Update user with the new token
+	_, err = s.coll.UpdateOne(
+		s.ctx,
+		bson.M{"email": email},
+		bson.M{
+			"$set": bson.M{
+				"verificationToken":   newToken,
+				"verificationExpires": newExpiry,
+				"updatedAt":           time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	// Create the verification link
+	link := fmt.Sprintf("%s/auth/verify-email?token=%s", s.cfg.AppBaseURL, newToken)
+	log.Printf("[EMAIL MOCK] (RESEND) Verification link for %s: %s\n", user.Email, link)
+
+	subject := "Verify your email - MockNode"
+	html := utils.BuildEmailTemplate(
+		"MockNode",
+		"Verify Your Email Again 👋",
+		fmt.Sprintf(`Hey %s,<br><br>
+
+It looks like you didn’t get a chance to verify your email earlier — no worries! 😊<br><br>
+
+Click the button below to verify your email and unlock all features of <strong>MockNode</strong>.<br><br>
+
+If you didn’t request this, you can safely ignore it.<br><br>
+`, user.FullName),
+		"Verify Email",
+		link,
+	)
+
+	// Send email
+	if err := utils.SendEmail(s.cfg, user.Email, subject, html); err != nil {
+		log.Printf("❌ Failed to resend verification email: %v\n", err)
+		return errors.New("failed to send verification email")
+	}
+
+	log.Printf("✅ Verification email re-sent to %s\n", user.Email)
+
+	return nil
+}
+
 // -------------------- Verify Email --------------------
 func (s *AuthService) VerifyEmail(token string) error {
 
@@ -147,8 +233,10 @@ func (s *AuthService) VerifyEmail(token string) error {
 			"updatedAt":  time.Now(),
 		},
 		"$unset": bson.M{
-			"verificationToken":   "",
-			"verificationExpires": "",
+			"verificationToken":      "",
+			"verificationExpires":    "",
+			"lastVerificationSentAt": "",
+			"verificationEmailCount": "",
 		},
 	}
 
